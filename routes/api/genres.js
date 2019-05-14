@@ -1,57 +1,57 @@
 const express = require('express');
 const router = express.Router();
-const genreData = require('../../genreData');
-
-const uuid = require('uuid');
-//get constant json
-
+const mongoose = require('mongoose');
+const Joi = require('joi');
+const {Genre , validate} = require('../../models/genre');
 
 //api to get all genres
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     console.log('genres get')
-    res.json(genreData);
+    const genres = await Genre.find().sort('name');
+    res.send(genres);
 });
 
 //api to get single genres
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     console.log('get genre for id');
-    let recordFound = genreData.some(genre => genre.id === parseInt(req.params.id));
-    if (recordFound) {
-        res.send(genreData.filter(genre => {
-            return genre.id === parseInt(req.params.id);
-        }))
-    } else {
-        res.status(400).json({ msg: `No genre found with id ${req.params.id}` })
-    }
+    const genre = await Genre.findById(req.params.id);
+    if (!genre)
+        return res.status(400).send('The genre with given Id does not exits.')
 });
 
 //api to create a genre
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     console.log('create a genre called');
-    const newGenre = { id: uuid.v4(), 'name': req.body.name };
-    if(!newGenre.name){
-        return res.status(400).json({ msg: 'Please include all fields' })
-    }else{
-        genreData.push(newGenre);
-        res.json(genreData);
-    }
+    const { error } = validate(req.body);
+    if (error)
+        return res.status(400).send(error.details[0].message);
+    let genre = new Genre({ name: req.body.name });
+    genre = await genre.save();
+    res.send(genre);
+
 });
 
 //api to update a genre
+router.put('/:id', async (req, res) => {
+    const { error } = validate(req.body);
+    if (error)
+        return res.status(400).send(error.details[0].message);
 
-router.put('/' , (req , res) =>{
-    let recordFound = genreData.some(genre =>{genre.id === parseInt(req.params.id)});
-    if(recordFound){
-        const genreToUpdate = req.body;
-        genreData.forEach(genre => {
-            if (genre.id === parseInt(req.params.id)) {
-                genre.name = genreToUpdate.name ? genreToUpdate.name : genre.name;
-                res.json({ msg: 'genre update', genre: genre })
-            }
-        })
-    }else{
-        res.status(400).json({ msg: `No memeber found with id : ${req.params.id}` });
-    }
+    const genre = await Genre.findByIdAndUpdate(req.params.id, { name: req.body.name }, { new: true });
+    if (!genre)
+        return res.status(400).send('The genre with given Id does not exits.')
+
+    res.send(genre);
+});
+
+//api to delete a genre
+router.delete('/:id', async (req, res) => {
+
+    const genre = await Genre.findByIdAndRemove(req.params.id);
+    if (!genre)
+        return res.status(400).send('The genre with given Id does not exits.')
+
+    res.send(genre);
 })
 
 
